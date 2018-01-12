@@ -28,9 +28,6 @@ P = 7
 
 x = tf.placeholder(tf.float32, shape=[None, N*M*P])
 y_ = tf.placeholder(tf.float32, shape=[None, N*M*P, 3])
-W = tf.Variable(tf.zeros([N*M*P, N*M*P, 3]))
-L = tf.Variable(tf.zeros([N*M*P, 3]))
-y = tf.nn.softmax(tf.tensordot(x, W, axes=[[1], [1]]) + L)
 
 #STEM
 #first convolution
