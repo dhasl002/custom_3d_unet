@@ -28,6 +28,9 @@ P = 7
 
 x = tf.placeholder(tf.float32, shape=[None, N*M*P])
 y_ = tf.placeholder(tf.float32, shape=[None, N*M*P, 3])
+#W = tf.Variable(tf.zeros([N*M*P, N*M*P, 3]))
+#L = tf.Variable(tf.zeros([N*M*P, 3]))
+#y = tf.nn.softmax(tf.tensordot(x, W, axes=[[1], [1]]) + L)
 
 #STEM
 #first convolution
@@ -58,8 +61,7 @@ h_conv6_B = conv3d_s1(h_conv5_B, W_conv6_B)
 #concatenation
 layer1 = tf.concat([h_conv4_A, h_conv6_B],4)
 w = tf.Variable(tf.constant(1.,shape=[2,2,4,1,192]))
-DeConnv1 = tf.nn.conv3d_transpose(layer1, filter = w, output_shape = [1,N,M,P,1], strides = [1,2,2,2,1], padding = 'SAME')
-print(DeConnv1)
+DeConnv1 = tf.nn.conv3d_transpose(layer1, filter = w, output_shape = [40,N,M,P,1], strides = [1,2,2,2,1], padding = 'SAME')
 
 r = tf.nn.relu(layer1)
 
@@ -69,10 +71,8 @@ W_conv1_A = weight_variable([3, 3, 1, 192, 192])
 h_conv1_A = conv3d(r, W_conv1_A)
 #first convolution path 2- pooling 3x3
 h_conv1_B = max_pool_3x3(r)
-print(h_conv1_B)
 #concat
 concat1 = tf.concat([h_conv1_A, h_conv1_B],4)
-print(concat1)
 #second convolution path 1
 W_conv2_A = weight_variable([1, 1, 1, 384, 32])
 h_conv2_A = conv3d_s1(concat1, W_conv2_A)
@@ -100,9 +100,8 @@ h_conv5 = conv3d_s1(concat2, W_conv5)
 h_conv6 = conv3d_dilation(h_conv5, 384)
 #residual learning added to last convolution
 layer2 = tf.add(h_conv6, concat1)
-print(layer2)
 w = tf.Variable(tf.constant(1.,shape=[4,4,6,1,384]))
-DeConnv2 = tf.nn.conv3d_transpose(layer2, filter = w, output_shape = [1,N,M,P,1], strides = [1,4,4,4,1], padding = 'SAME')
+DeConnv2 = tf.nn.conv3d_transpose(layer2, filter = w, output_shape = [40,N,M,P,1], strides = [1,4,4,4,1], padding = 'SAME')
 
 
 r2 = tf.nn.relu(layer2)
@@ -110,7 +109,6 @@ r2 = tf.nn.relu(layer2)
 #REDUCTION A
 #first pool path 1
 h_conv1_A = max_pool_3x3(r2)
-print(h_conv1_A)
 #first convolution path 2
 W_conv1_B = weight_variable([3, 3, 1, 384, 32])
 h_conv1_B = conv3d(r2, W_conv1_B)
@@ -127,7 +125,6 @@ h_conv3_C = conv3d(h_conv2_C, W_conv3_C)
 layer3 = tf.concat([h_conv1_B, h_conv1_A, h_conv3_C],4)
 
 r3 = tf.nn.relu(layer3)
-print(r3)
 
 #INCEPTION_B
 #first convolution path 1
@@ -144,7 +141,6 @@ W_conv3_B = weight_variable([7, 1, 1, 128, 128])
 h_conv3_B = conv3d_s1(h_conv2_B, W_conv3_B)
 #concatenation
 concat1 = tf.concat([h_conv3_B, h_conv1_A], 4)
-print(concat1)
 #second convolution path 1
 W_conv2_A = weight_variable([1, 1, 1, 256, 896])
 h_conv2_A = conv3d_s1(concat1, W_conv2_A)
@@ -153,8 +149,7 @@ h_conv4 = conv3d_dilation(h_conv2_A, 800)
 #residual addition
 layer4 = tf.add(h_conv4, r3)
 w = tf.Variable(tf.constant(1.,shape=[8,8,7,1,800]))
-DeConnv3 = tf.nn.conv3d_transpose(layer4, filter = w, output_shape = [1,N,M,P,1], strides = [1,8,8,8,1], padding = 'SAME')
-print(Deconv3)
+DeConnv3 = tf.nn.conv3d_transpose(layer4, filter = w, output_shape = [40,N,M,P,1], strides = [1,8,8,8,1], padding = 'SAME')
 
 r4 = tf.nn.relu(layer4)
 
@@ -184,7 +179,6 @@ h_conv4_C = conv3d(h_conv3_C, W_conv4_C)
 layer5 = tf.concat([h_conv4_C, h_conv1_B, h_conv2_A], 4)
 
 r5 = tf.nn.relu(layer5)
-print(r5)
 
 #INCEPTION_C
 #first convolution path 1
@@ -204,18 +198,16 @@ W_conv3_B = weight_variable([3, 1, 1, 224, 256])
 h_conv3_B = conv3d_s1(h_conv2_B, W_conv3_B)
 #concat
 concat1 = tf.concat([h_conv3_B,h_conv2_A],4)
-print(concat1)
 #dilation
 h_conv4 = conv3d_dilation(concat1, 1312)
 layer6 = tf.add(h_conv4, r5)
 w = tf.Variable(tf.constant(1.,shape=[16,16,7,1,1312]))
-DeConnv4 = tf.nn.conv3d_transpose(layer6, filter = w, output_shape = [1,N,M,P,1], strides = [1,16,16,16,1], padding = 'SAME')
+DeConnv4 = tf.nn.conv3d_transpose(layer6, filter = w, output_shape = [40,N,M,P,1], strides = [1,16,16,16,1], padding = 'SAME')
 
 add1 = tf.add(DeConnv1,DeConnv2)
 add2 = tf.add(DeConnv3,DeConnv4)
 final = tf.add(add1,add2)
-final = tf.reshape(final, [1, N*M*P])
-print(DeConnv1)
+final = tf.reshape(final, [40, N*M*P])
 keep_prob = tf.placeholder(tf.float32)
 #h_drop = tf.nn.dropout(final, keep_prob)
 W_final = weight_variable([N*M*P,N*M*P,3])
@@ -228,26 +220,27 @@ train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(final_conv, 2), tf.argmax(y_, 2))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-a = np.zeros((1,N*M*P),dtype = float)
-b = np.zeros((1,N*M*P, 3), dtype = float)
 it = 0
-num = 1
+num = 0
 count = 0
 maxNum = 0
+numLines = 0
 
 with tf.Session() as sess:
    sess.run(tf.global_variables_initializer())
-   parent = "C:/Users/dhaslam/Downloads/results/post-processing/New_test_samples/list.txt"
+   parent = "/home/dhaslam/New_test_samples/RotatedSet/list.txt"
    with open(parent) as inf1:
      next(inf1)
      for line5 in inf1:
        line1, maxNum = line5.strip().split(",")
-       path = "C:/Users/dhaslam/Downloads/results/post-processing/New_test_samples/" + line1 + "/" + line1 + "-"
+       path = "/home/dhaslam/New_test_samples/RotatedSet/" + line1 + "/" + line1 + "-"
        num = 0
-       while num < maxNum:
+       while int(num) < int(maxNum):
          it = 0
+         if (int(num)%40 == 0):
+           a = np.zeros((40,N*M*P),dtype = float)
+           b = np.zeros((40,N*M*P, 3), dtype = float)
          with open(path + str(num) + ".txt") as inf:
-           next(inf)
            num = num + 1
            for line in inf:
              xCoord, yCoord, zCoord, thresh, label = line.strip().split(",")
@@ -256,17 +249,32 @@ with tf.Session() as sess:
              zCoord = int(zCoord)
              thresh = float(thresh)
              label = int(label)
-             a[0][it] = thresh
-             b[0][it][label] = 1
+             a[int(num)%40][it] = thresh
+             b[int(num)%40][it][label] = 1
              it = it + 1
-         train_accuracy = accuracy.eval(feed_dict={x: a, y_: b, keep_prob: 1.0})
-         print('step %d, training accuracy %g' % (0,train_accuracy))
-         train_step.run(feed_dict={x: a, y_: b, keep_prob: .5})
-   path2 = "C:/Users/dhaslam/Downloads/results/post-processing/New_test_samples/4XDA/4XDA-"
+         if(int(num)%40 == 39):
+           train_accuracy = accuracy.eval(feed_dict={x: a, y_: b, keep_prob: 1})
+           print('step %d, training accuracy %g' % (0,train_accuracy))
+           print(cross_entropy.eval(feed_dict={x: a, y_: b}))
+           train_step.run(feed_dict={x: a, y_: b, keep_prob: .5})
+   path2 = "/home/dhaslam/New_test_samples/RotatedSet/4XDA/4XDA-"
    it = 0
    num = 0
-   while num < 77:
+   #hard coded for amount of test data
+   while int(num) < 50:
+     numLines = 0
+	 #check how many lines are in test file
+     with open(path2 + str(num) + ".txt") as inf3:
+       for line4 in inf3:
+         numLines = numLines + 1
      with open(path2 + str(num) + ".txt") as inf2:
+       a = np.zeros((1,numLines),dtype = float)
+       b = np.zeros((1,numLines, 3), dtype = float)
+       axisZ = np.zeros((1,numLines),dtype = float)
+       axisY = np.zeros((1,numLines), dtype = float)
+       axisX = np.zeros((1,numLines),dtype = float)
+       #x = tf.placeholder(tf.float32, shape=[None, numLines])
+       #y_ = tf.placeholder(tf.float32, shape=[None, numLines, 3])
        next(inf2)
        num = num + 1
        it = 0
@@ -277,14 +285,18 @@ with tf.Session() as sess:
          zCoord = int(zCoord)
          thresh = float(thresh)
          label = int(label)
+         axisX[0][it] = xCoord
+         axisY[0][it] = yCoord
+         axisZ[0][it] = zCoord
          a[0][it] = thresh
          b[0][it][label] = 1
          it = it + 1
      print(sess.run(accuracy, feed_dict={x: a, y_: b, keep_prob: 1.0}))
      temp = sess.run(tf.argmax(final_conv,2), feed_dict={x: a})
-     tempPath = "C:/Users/dhaslam/Desktop/results-"
+	 #writing to file
+     tempPath = "/home/dhaslam/New_test_samples/RotatedSet/labels/results-"
      f1 = open(tempPath + str(num) + ".txt","w+")
      counter = 0
-     while counter < 7168:
-       f1.write(str(temp[0][counter]))
+     while counter < numLines:
+       f1.write(str(int(axisX[0][counter])) + " " + str(int(axisY[0][counter])) + " " + str(int(axisZ[0][counter])) + " " + str(temp[0][counter]) + "\r\n")
        counter = counter + 1
