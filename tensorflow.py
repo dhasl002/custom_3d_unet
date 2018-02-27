@@ -1,6 +1,10 @@
 import tensorflow as tf
 import numpy as np
+from tensorflow.python import debug as tf_debug
+
 sess = tf.InteractiveSession()
+sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
 
 def conv3d_dilation(tempX, tempFilter):
   return tf.layers.conv3d(tempX, filters = tempFilter, kernel_size=[3, 3, 1], strides=1, padding='SAME', dilation_rate = 2)
@@ -28,40 +32,47 @@ P = 7
 
 x = tf.placeholder(tf.float32, shape=[None, N*M*P])
 y_ = tf.placeholder(tf.float32, shape=[None, N*M*P, 3])
-#W = tf.Variable(tf.zeros([N*M*P, N*M*P, 3]))
-#L = tf.Variable(tf.zeros([N*M*P, 3]))
-#y = tf.nn.softmax(tf.tensordot(x, W, axes=[[1], [1]]) + L)
 
 #STEM
 #first convolution
 W_conv1 = weight_variable([3, 3, 1, 1, 32])
 x_image = tf.reshape(x, [-1, N, M, P, 1])
 h_conv1 = conv3d(x_image, W_conv1)
+print(h_conv1)
 #second convolution
 W_conv2 = weight_variable([3, 3, 4, 32, 64])
 h_conv2 = conv3d_s1(h_conv1, W_conv2)
+print(h_conv2)
 #third convolution path 1
 W_conv3_A = weight_variable([1, 1, 1, 64, 64])
 h_conv3_A = conv3d_s1(h_conv2, W_conv3_A)
+print(h_conv3_A)
 #third convolution path 2
 W_conv3_B = weight_variable([1, 1, 1, 64, 64])
 h_conv3_B = conv3d_s1(h_conv2, W_conv3_B)
+print(h_conv3_B)
 #fourth convolution path 1
 W_conv4_A = weight_variable([3, 3, 1, 64, 96])
 h_conv4_A = conv3d_s1(h_conv3_A, W_conv4_A)
+print(h_conv4_A)
 #fourth convolution path 2
 W_conv4_B = weight_variable([1, 7, 1, 64, 64])
 h_conv4_B = conv3d_s1(h_conv3_B, W_conv4_B)
+print(h_conv4_B)
 #fifth convolution path 2
-W_conv5_B = weight_variable([1, 7, 1, 64, 64])
+W_conv5_B = weight_variable([7, 1, 1, 64, 64])
 h_conv5_B = conv3d_s1(h_conv4_B, W_conv5_B)
+print(h_conv5_B)
 #sixth convolution path 2
 W_conv6_B = weight_variable([3, 3, 1, 64, 96])
 h_conv6_B = conv3d_s1(h_conv5_B, W_conv6_B)
+print(h_conv6_B)
 #concatenation
 layer1 = tf.concat([h_conv4_A, h_conv6_B],4)
+print(layer1)
 w = tf.Variable(tf.constant(1.,shape=[2,2,4,1,192]))
-DeConnv1 = tf.nn.conv3d_transpose(layer1, filter = w, output_shape = [40,N,M,P,1], strides = [1,2,2,2,1], padding = 'SAME')
+shape = tf.shape(tf.reshape(x, [-1, N, M, P, 1]))
+DeConnv1 = tf.nn.conv3d_transpose(layer1, filter = w, output_shape = shape, strides = [1,2,2,2,1], padding = 'SAME')
 
 r = tf.nn.relu(layer1)
 
@@ -101,7 +112,8 @@ h_conv6 = conv3d_dilation(h_conv5, 384)
 #residual learning added to last convolution
 layer2 = tf.add(h_conv6, concat1)
 w = tf.Variable(tf.constant(1.,shape=[4,4,6,1,384]))
-DeConnv2 = tf.nn.conv3d_transpose(layer2, filter = w, output_shape = [40,N,M,P,1], strides = [1,4,4,4,1], padding = 'SAME')
+shape = tf.shape(tf.reshape(x, [-1, N, M, P, 1]))
+DeConnv2 = tf.nn.conv3d_transpose(layer2, filter = w, output_shape = shape, strides = [1,4,4,4,1], padding = 'SAME')
 
 
 r2 = tf.nn.relu(layer2)
@@ -149,7 +161,8 @@ h_conv4 = conv3d_dilation(h_conv2_A, 800)
 #residual addition
 layer4 = tf.add(h_conv4, r3)
 w = tf.Variable(tf.constant(1.,shape=[8,8,7,1,800]))
-DeConnv3 = tf.nn.conv3d_transpose(layer4, filter = w, output_shape = [40,N,M,P,1], strides = [1,8,8,8,1], padding = 'SAME')
+shape = tf.shape(tf.reshape(x, [-1, N, M, P, 1]))
+DeConnv3 = tf.nn.conv3d_transpose(layer4, filter = w, output_shape = shape, strides = [1,8,8,8,1], padding = 'SAME')
 
 r4 = tf.nn.relu(layer4)
 
@@ -202,66 +215,98 @@ concat1 = tf.concat([h_conv3_B,h_conv2_A],4)
 h_conv4 = conv3d_dilation(concat1, 1312)
 layer6 = tf.add(h_conv4, r5)
 w = tf.Variable(tf.constant(1.,shape=[16,16,7,1,1312]))
-DeConnv4 = tf.nn.conv3d_transpose(layer6, filter = w, output_shape = [40,N,M,P,1], strides = [1,16,16,16,1], padding = 'SAME')
+shape = tf.shape(tf.reshape(x, [-1, N, M, P, 1]))
+DeConnv4 = tf.nn.conv3d_transpose(layer6, filter = w, output_shape = shape, strides = [1,16,16,16,1], padding = 'SAME')
 
 add1 = tf.add(DeConnv1,DeConnv2)
 add2 = tf.add(DeConnv3,DeConnv4)
 final = tf.add(add1,add2)
-final = tf.reshape(final, [40, N*M*P])
-keep_prob = tf.placeholder(tf.float32)
-#h_drop = tf.nn.dropout(final, keep_prob)
+final = tf.reshape(final, [-1, N*M*P])
+
 W_final = weight_variable([N*M*P,N*M*P,3])
 b_final = bias_variable([N*M*P,3])
 final_conv = tf.tensordot(final, W_final, axes=[[1], [1]]) + b_final
 
 #train model
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=final_conv))
-train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_, logits=final_conv))
+train_step = tf.train.AdamOptimizer(1e-8, epsilon = .1).minimize(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(final_conv, 2), tf.argmax(y_, 2))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+keep_prob = tf.placeholder(tf.float32)
 it = 0
 num = 0
 count = 0
 maxNum = 0
 numLines = 0
+epochs = 3000
+curEpoch = 0
+avgLoss = 0
+avgAccuracy = 0
+avgCounter = 0   
+CurCross = 0
 
+tempPathStat = "/home/dhaslam/New_test_samples2/RotatedSet/labels/Statistics.txt"
+fStat = open(tempPathStat,"w+")
+
+#reading data
 with tf.Session() as sess:
    sess.run(tf.global_variables_initializer())
-   parent = "/home/dhaslam/New_test_samples/RotatedSet/list.txt"
-   with open(parent) as inf1:
-     next(inf1)
-     for line5 in inf1:
-       line1, maxNum = line5.strip().split(",")
-       path = "/home/dhaslam/New_test_samples/RotatedSet/" + line1 + "/" + line1 + "-"
-       num = 0
-       while int(num) < int(maxNum):
-         it = 0
-         if (int(num)%40 == 0):
-           a = np.zeros((40,N*M*P),dtype = float)
-           b = np.zeros((40,N*M*P, 3), dtype = float)
-         with open(path + str(num) + ".txt") as inf:
-           num = num + 1
-           for line in inf:
-             xCoord, yCoord, zCoord, thresh, label = line.strip().split(",")
-             xCoord = int(xCoord)
-             yCoord = int(yCoord)
-             zCoord = int(zCoord)
-             thresh = float(thresh)
-             label = int(label)
-             a[int(num)%40][it] = thresh
-             b[int(num)%40][it][label] = 1
-             it = it + 1
-         if(int(num)%40 == 39):
-           train_accuracy = accuracy.eval(feed_dict={x: a, y_: b, keep_prob: 1})
-           print('step %d, training accuracy %g' % (0,train_accuracy))
-           print(cross_entropy.eval(feed_dict={x: a, y_: b}))
-           train_step.run(feed_dict={x: a, y_: b, keep_prob: .5})
-   path2 = "/home/dhaslam/New_test_samples/RotatedSet/4XDA/4XDA-"
+   while (curEpoch < epochs):
+     curEpoch = curEpoch + 1
+     print('epoch Number: ' + str(curEpoch))
+     fStat.write('epoch Number: ' + str(curEpoch) + '\n')
+     if(avgCounter != 0):
+       fStat.write(' AvgAccuacy= ' + str(avgAccuracy/avgCounter) + '\n')
+       fStat.write(' AvgLoss= ' + str(avgLoss/avgCounter) + '\n')
+     avgLoss = 0
+     avgAccuracy = 0
+     avgCounter = 0	 
+     parent = "/home/dhaslam/New_test_samples2/RotatedSet/list.txt"
+     with open(parent) as inf1:
+       next(inf1)
+       for line5 in inf1:
+         line1, maxNum = line5.strip().split(",")
+         path = "/home/dhaslam/New_test_samples2/RotatedSet/" + line1 + "/" + line1 + "-"
+         num = 0
+         while int(num) < int(maxNum):
+           it = 0
+           if (int(num)%30 == 0):
+             a = np.zeros((30,N*M*P),dtype = float)
+             b = np.zeros((30,N*M*P, 3), dtype = float)
+           with open(path + str(num) + ".txt") as inf:
+             num = num + 1
+             for line in inf:
+               xCoord, yCoord, zCoord, thresh, label = line.strip().split(",")
+               xCoord = int(xCoord)
+               yCoord = int(yCoord)
+               zCoord = int(zCoord)
+               thresh = float(thresh)
+               label = int(label)
+               #a[int(num)%30][it][0] = xCoord	
+               #a[int(num)%30][it][1] = yCoord		
+               #a[int(num)%30][it][2] = zCoord		
+               a[int(num)%30][it] = thresh					   
+               b[int(num)%30][it][label] = 1
+               it = it + 1
+           if(int(num)%30 == 29):
+             CurCross = cross_entropy.eval(feed_dict={x: a, y_: b})
+             train_accuracy = accuracy.eval(feed_dict={x: a, y_: b, keep_prob: 1})
+             avgAccuracy = avgAccuracy + train_accuracy
+             avgLoss = avgLoss + CurCross
+             avgCounter = avgCounter + 1
+             fStat.write('training accuracy %g' % (train_accuracy))
+             fStat.write('\n')
+             fStat.write('Loss %g' % (CurCross))
+             fStat.write('\n')
+             print('training accuracy %g' % (train_accuracy))
+             print('Loss %g' % (CurCross))
+             train_step.run(feed_dict={x: a, y_: b, keep_prob: .5})
+   path2 = "/home/dhaslam/New_test_samples2/RotatedSet/4XDA/4XDA-"
    it = 0
    num = 0
    #hard coded for amount of test data
-   while int(num) < 50:
+   while int(num) < 1079:
      numLines = 0
 	 #check how many lines are in test file
      with open(path2 + str(num) + ".txt") as inf3:
@@ -294,9 +339,10 @@ with tf.Session() as sess:
      print(sess.run(accuracy, feed_dict={x: a, y_: b, keep_prob: 1.0}))
      temp = sess.run(tf.argmax(final_conv,2), feed_dict={x: a})
 	 #writing to file
-     tempPath = "/home/dhaslam/New_test_samples/RotatedSet/labels/results-"
+     tempPath = "/home/dhaslam/New_test_samples2/RotatedSet/labels/results-"
      f1 = open(tempPath + str(num) + ".txt","w+")
      counter = 0
      while counter < numLines:
        f1.write(str(int(axisX[0][counter])) + " " + str(int(axisY[0][counter])) + " " + str(int(axisZ[0][counter])) + " " + str(temp[0][counter]) + "\r\n")
        counter = counter + 1
+   fStat.close()
