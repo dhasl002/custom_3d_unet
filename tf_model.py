@@ -1,7 +1,5 @@
 import tensorflow as tf
 import numpy as np
-from tensorflow.python import debug as tf_debug
-sess = tf.InteractiveSession()
 
 def conv3d_dilation(tempX, tempFilter):
   return tf.layers.conv3d(tempX, filters = tempFilter, kernel_size=[3, 3, 1], strides=1, padding='SAME', dilation_rate = 2)
@@ -23,14 +21,16 @@ def bias_variable(shape):
 def max_pool_3x3(x):
   return tf.nn.max_pool3d(x, ksize=[1, 3, 3, 3, 1],strides=[1, 2, 2, 2, 1], padding='SAME')
 
-def model(x_image, y_, N, M, P):
+def model(x_image):
   #STEM
-  #first convolution
-  W_conv1 = weight_variable([3, 3, 1, 1, 32])
-  h_conv1 = conv3d(x_image, W_conv1)
+  with tf.name_scope("1stKernel"):
+    W_conv1 = weight_variable([3, 3, 1, 3, 32])
+  with tf.name_scope("1stConv"):
+    h_conv1 = conv3d(x_image, W_conv1)
   #second convolution
   W_conv2 = weight_variable([3, 3, 4, 32, 64])
-  h_conv2 = conv3d_s1(h_conv1, W_conv2)
+  with tf.name_scope("2ndConv"):
+    h_conv2 = conv3d_s1(h_conv1, W_conv2)
   #third convolution path 1
   W_conv3_A = weight_variable([1, 1, 1, 64, 64])
   h_conv3_A = conv3d_s1(h_conv2, W_conv3_A)
@@ -51,9 +51,9 @@ def model(x_image, y_, N, M, P):
   h_conv6_B = conv3d_s1(h_conv5_B, W_conv6_B)
   #concatenation
   layer1 = tf.concat([h_conv4_A, h_conv6_B],4)
-  w = tf.Variable(tf.constant(1.,shape=[2,2,4,1,192]))
+  w = tf.Variable(tf.constant(1.,shape=[2,2,4,3,192]))
   DeConnv1 = tf.nn.conv3d_transpose(layer1, filter = w, output_shape = tf.shape(x_image), strides = [1,2,2,2,1], padding = 'SAME')
-
+  
   r = tf.nn.relu(layer1)
 
   #INCEPTION_A
@@ -92,12 +92,11 @@ def model(x_image, y_, N, M, P):
   #residual learning added to last convolution
   #layer2 = h_conv6
   layer2 = tf.add(h_conv6, concat1)
-  w = tf.Variable(tf.constant(1.,shape=[4,4,6,1,384]))
+  w = tf.Variable(tf.constant(1.,shape=[4,4,6,3,384]))
   DeConnv2 = tf.nn.conv3d_transpose(layer2, filter = w, output_shape = tf.shape(x_image), strides = [1,4,4,4,1], padding = 'SAME')
 
 
   r2 = tf.nn.relu(layer2)
-
   #REDUCTION A
   #first pool path 1
   h_conv1_A = max_pool_3x3(r2)
@@ -141,7 +140,7 @@ def model(x_image, y_, N, M, P):
   #residual addition
   #layer4 = h_conv4
   layer4 = tf.add(h_conv4, r3)
-  w = tf.Variable(tf.constant(1.,shape=[8,8,7,1,800]))
+  w = tf.Variable(tf.constant(1.,shape=[8,8,7,3,800]))
   DeConnv3 = tf.nn.conv3d_transpose(layer4, filter = w, output_shape = tf.shape(x_image), strides = [1,8,8,8,1], padding = 'SAME')
 
   r4 = tf.nn.relu(layer4)
@@ -195,17 +194,18 @@ def model(x_image, y_, N, M, P):
   h_conv4 = conv3d_dilation(concat1, 1216)
   #layer6 = h_conv4
   layer6 = tf.add(h_conv4, r5)
-  w = tf.Variable(tf.constant(1.,shape=[16,16,7,1,1216]))
+  w = tf.Variable(tf.constant(1.,shape=[16,16,7,3,1216]))
   DeConnv4 = tf.nn.conv3d_transpose(layer6, filter = w, output_shape = tf.shape(x_image), strides = [1,16,16,16,1], padding = 'SAME')
 
   add1 = tf.add(DeConnv1,DeConnv2)
   add2 = tf.add(DeConnv3,DeConnv4)
-  final = tf.add(add1,add2)
+  with tf.name_scope("BeforeReshape"):
+	final = tf.add(add1, add2)
+  #with tf.name_scope("AfterMoreChannelsWV"):
+    #WV = weight_variable([1, 1, 1, 1, 3])
+  #with tf.name_scope("AfterMoreChannels"):
+    #final_conv = conv3d_s1(final, WV)
+  with tf.name_scope("AfterReshape"):
+    final_conv = tf.reshape(final, [-1, 3])
 
-  final= tf.reshape(final, [-1, N*M*P])
-
-  W_final = weight_variable([N*M*P,N*M*P,3])
-  b_final = bias_variable([N*M*P,3])
-
-  final_conv = tf.tensordot(final, W_final, axes=[[1], [1]]) + b_final
   return final_conv
