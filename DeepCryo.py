@@ -35,13 +35,15 @@ def train(trainingListLocation, batch_Size):
 def trainProtein(numFiles, batch_Size, proteinList, numTraining):
   for currIt in range(0, (len(proteinList)*int(numTraining[0]))):
     it = 0
+    it2 = 0
     if (int(currIt)%batch_Size == 0):
       a = np.zeros((batch_Size,N,M,P,1),dtype = float)
-      b = np.zeros((batch_Size,N*M*P,3), dtype = float)
-      c = np.zeros((batch_Size,N,M,P,3), dtype = float)
+      b = np.zeros((batch_Size,N*M*1,3), dtype = float)
+      c = np.zeros((batch_Size,N,M,1,3), dtype = float)
     randNum = randint(0, (len(proteinList)-1))
     randNum2 = randint(0, int(numTraining[randNum]))
     path = "/home/dhaslam/New_test_samples2/RotatedSet/" + proteinList[randNum] + "/" + proteinList[randNum] + "-"
+    xMax, xMin, yMax, yMin, zMax, zMin = getMRCDimensions(path + str(randNum2) + ".txt")
     with open(path + str(randNum2) + ".txt") as inf:
       for line in inf:
         xCoord, yCoord, zCoord, thresh, label = line.strip().split(",")
@@ -51,7 +53,9 @@ def trainProtein(numFiles, batch_Size, proteinList, numTraining):
         thresh = float(thresh)
         label = int(label)	
         a[int(currIt)%batch_Size][int(it/(32*7))][int(it/32)%32][int(it%7)][0] = thresh
-        b[int(currIt)%batch_Size][it][label] = 1
+        if zCoord == (zMin + 3):
+          b[int(currIt)%batch_Size][it2][label] = 1
+          it2 = it2 + 1
         it = it + 1		  
     if(int(currIt)%batch_Size == (batch_Size)-1):
       runTrainingBatch(a, b, c)
@@ -109,8 +113,8 @@ def test():
   numLines = (xLength)*(yLength)*(zLength)
   with open(path2) as inf2:
     a = np.zeros((1,xLength, yLength, zLength, 1),dtype = float)
-    b = np.zeros((1,numLines, 3), dtype = float)
-    c = np.zeros((1,xLength, yLength, zLength, 3), dtype = float)
+    b = np.zeros((1,(xLength)*(yLength)*1, 3), dtype = float)
+    c = np.zeros((1,xLength, yLength, 1, 3), dtype = float)
     axisZ = np.zeros((1,numLines),dtype = float)
     axisY = np.zeros((1,numLines),dtype = float)
     axisX = np.zeros((1,numLines),dtype = float)
@@ -129,9 +133,10 @@ def test():
       zCoord = int(zCoord) 
       thresh = float(thresh)
       label = int(label)
-      curPos = (xCoord-xMin)*yLength*zLength+(yCoord-yMin)*zLength+(zCoord-zMin)
+      curPos = (xCoord-xMin)*yLength*1+(yCoord-yMin)
       a[0][xCoord-xMin][yCoord-yMin][zCoord-zMin][0]  = thresh
-      b[0][curPos][label] = 1
+      if zCoord == (zMin + int(zLength/2)):
+        b[0][curPos][label] = 1
   print(sess.run(accuracy, feed_dict={x_image: a, y_: b, x_image_2: c, keep_prob: 1.0}))
   predictedLabels = sess.run(tf.argmax(modelResult,1), feed_dict={x_image: a, x_image_2: c})
   writePredictionsToFile(predictedLabels, numLines, axisX, axisY, axisZ, b, 0)
@@ -147,18 +152,19 @@ def testSmallImages():
     numLines = (xLength)*(yLength)*(zLength)
     with open(path) as inf2:
       a = np.zeros((1,xLength, yLength, zLength, 1),dtype = float)
-      b = np.zeros((1,numLines, 3), dtype = float)
-      c = np.zeros((1,xLength, yLength, zLength, 3), dtype = float)
-      axisZ = np.zeros((1,numLines),dtype = float)
-      axisY = np.zeros((1,numLines),dtype = float)
-      axisX = np.zeros((1,numLines),dtype = float)
+      b = np.zeros((1,(xLength)*(yLength), 3), dtype = float)
+      c = np.zeros((1,xLength, yLength, 1, 3), dtype = float)
+      axisZ = np.zeros((1,(xLength)*(yLength)),dtype = float)
+      axisY = np.zeros((1,(xLength)*(yLength)),dtype = float)
+      axisX = np.zeros((1,(xLength)*(yLength)),dtype = float)
       for x in range(0, xLength):
         for y in range(0, yLength):
           for z in range(0, zLength):
-            curPos = (x)*yLength*zLength+(y)*zLength+(z)
-            axisX[0][curPos] = x+xMin
-            axisY[0][curPos] = y+yMin
-            axisZ[0][curPos] = z+zMin
+            curPos = (x)*yLength*1+(y)*1
+            if z == (int(zLength/2)):
+              axisX[0][curPos] = x+xMin
+              axisY[0][curPos] = y+yMin
+              axisZ[0][curPos] = z+zMin
       next(inf2)
       for line3 in inf2:
         xCoord, yCoord, zCoord, thresh, label = line3.strip().split(",")
@@ -167,14 +173,15 @@ def testSmallImages():
         zCoord = int(zCoord) 
         thresh = float(thresh)
         label = int(label)
-        curPos = (xCoord-xMin)*yLength*zLength+(yCoord-yMin)*zLength+(zCoord-zMin)
+        curPos = (xCoord-xMin)*yLength*1+(yCoord-yMin)
         a[0][xCoord-xMin][yCoord-yMin][zCoord-zMin][0]  = thresh
-        b[0][curPos][label] = 1
+        if zCoord == (zMin + int(zLength/2)):
+          b[0][curPos][label] = 1
     acc = sess.run(accuracy, feed_dict={x_image: a, y_: b, x_image_2: c, keep_prob: 1.0})
     print(acc)
     fStat.write(str(acc) + '\n')
     predictedLabels = sess.run(tf.argmax(modelResult,1), feed_dict={x_image: a, x_image_2: c})
-    writePredictionsToFile(predictedLabels, numLines, axisX, axisY, axisZ, b, i)
+    writePredictionsToFile(predictedLabels, (xLength)*(yLength), axisX, axisY, axisZ, b, i)
 
 def writePredictionsToFile(predictedLabels, numLines, axisX, axisY, axisZ, b, index):
   path = tempPath + str(index) + ".txt"
@@ -195,8 +202,8 @@ path3 = "/home/dhaslam/New_test_samples2/RotatedSet/4XDA/4XDA-"
 tempPath = "/home/dhaslam/New_test_samples2/RotatedSet/labels/results"
 f5 = open("/home/dhaslam/New_test_samples2/RotatedSet/labels/results3.txt","w+")  
 
-x_image = tf.placeholder(tf.float32, shape=[None, None, None, None, 1])
-x_image_2 = tf.placeholder(tf.float32, shape=[None, None, None, None, 3])
+x_image = tf.placeholder(tf.float32, shape=[None, 32, 32, 7, 1])
+x_image_2 = tf.placeholder(tf.float32, shape=[None, 32, 32, 1, 3])
 y_ = tf.placeholder(tf.float32, shape=[None, None, 3])
 
 modelResult = model(x_image, x_image_2) #sets modelResults to the final result of the model 
