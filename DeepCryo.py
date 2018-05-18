@@ -42,6 +42,7 @@ def trainProtein(numFiles, batch_Size, proteinList, numTraining):
     randNum = randint(0, (len(proteinList)-1))
     randNum2 = randint(0, int(numTraining[randNum]))
     path = "/home/dhaslam/New_test_samples2/RotatedSet/" + proteinList[randNum] + "/" + proteinList[randNum] + "-"
+    #print(path + str(randNum2) + ".txt")
     with open(path + str(randNum2) + ".txt") as inf:
       for line in inf:
         xCoord, yCoord, zCoord, thresh, label = line.strip().split(",")
@@ -137,7 +138,8 @@ def test():
   writePredictionsToFile(predictedLabels, numLines, axisX, axisY, axisZ, b, 0)
   
 def testSmallImages():
-  for i in range(0, 30):
+  avgAcc = 0
+  for i in range(0, 60):
     path = path3 + str(i) + ".txt"
     keep_prob = tf.placeholder(tf.float32)
     xMax, xMin, yMax, yMin, zMax, zMin = getMRCDimensions(path)
@@ -172,9 +174,12 @@ def testSmallImages():
         b[0][curPos][label] = 1
     acc = sess.run(accuracy, feed_dict={x_image: a, y_: b, x_image_2: c, keep_prob: 1.0})
     print(acc)
+    avgAcc = avgAcc + acc
     fStat.write(str(acc) + '\n')
     predictedLabels = sess.run(tf.argmax(modelResult,1), feed_dict={x_image: a, x_image_2: c})
     writePredictionsToFile(predictedLabels, numLines, axisX, axisY, axisZ, b, i)
+  print(avgAcc/60)
+  fStat.write('AvgAcc=' + str(avgAcc/60) + '\n')
 
 def writePredictionsToFile(predictedLabels, numLines, axisX, axisY, axisZ, b, index):
   path = tempPath + str(index) + ".txt"
@@ -186,6 +191,7 @@ def writePredictionsToFile(predictedLabels, numLines, axisX, axisY, axisZ, b, in
 N = 32 #x dimension of training patch size
 M = 32 #y dimension of training patch size
 P = 7 #z dimension of training patch size
+Beta = .000001
 batch_Size = 30
 epochs = 10000000
 outputStats = "/home/dhaslam/New_test_samples2/RotatedSet/labels/Statistics.txt"
@@ -199,10 +205,10 @@ x_image = tf.placeholder(tf.float32, shape=[None, None, None, None, 1])
 x_image_2 = tf.placeholder(tf.float32, shape=[None, None, None, None, 3])
 y_ = tf.placeholder(tf.float32, shape=[None, None, 3])
 
-modelResult = model(x_image, x_image_2) #sets modelResults to the final result of the model 
+modelResult, l2Norm = model(x_image, x_image_2) #sets modelResults to the final result of the model 
 
 #train model
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=modelResult, labels=y_))
+cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=modelResult, labels=y_) + l2Norm*Beta) 
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(modelResult, 1), tf.argmax(tf.reshape(y_, [-1, 3]), 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -215,6 +221,6 @@ with tf.Session() as sess:
    for curEpoch in range(1, epochs):
      printEpoch(curEpoch) 
      train(trainingListLocation, batch_Size)
-     #test()
+     test()
      testSmallImages()
    fStat.close()
