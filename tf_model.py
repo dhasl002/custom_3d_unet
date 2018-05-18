@@ -57,7 +57,7 @@ def model(x_image, x_image_2):
   #concatenation
   layer1 = tf.concat([h_conv4_A, h_conv6_B],4)
 
-  w = tf.Variable(tf.constant(1.,shape=[2,2,1,3,192]))
+  w = tf.Variable(tf.constant(1.,shape=[4,4,1,3,192]))
   DeConnv1 = tf.nn.conv3d_transpose(layer1, filter = w, output_shape = tf.shape(x_image_2), strides = [1,2,2,1,1], padding = 'SAME')
   r = tf.nn.relu(layer1)
 
@@ -97,7 +97,7 @@ def model(x_image, x_image_2):
   #residual learning added to last convolution
   #layer2 = h_conv6
   layer2 = tf.add(h_conv6, concat1_1)
-  w2 = tf.Variable(tf.constant(1.,shape=[4,4,1,3,384]))
+  w2 = tf.Variable(tf.constant(1.,shape=[8,8,1,3,384]))
   DeConnv2 = tf.nn.conv3d_transpose(layer2, filter = w2, output_shape = tf.shape(x_image_2), strides = [1,4,4,1,1], padding = 'SAME')
   
   r2 = tf.nn.relu(layer2)
@@ -144,7 +144,7 @@ def model(x_image, x_image_2):
   #residual addition
   layer4 = tf.add(h_conv4_4, r3)
 
-  w3 = tf.Variable(tf.constant(1.,shape=[8,8,1,3,800]))
+  w3 = tf.Variable(tf.constant(1.,shape=[16,16,1,3,800]))
   DeConnv3 = tf.nn.conv3d_transpose(layer4, filter = w3, output_shape = tf.shape(x_image_2), strides = [1,8,8,1,1], padding = 'SAME')
 
   r4 = tf.nn.relu(layer4)
@@ -199,7 +199,7 @@ def model(x_image, x_image_2):
   #layer6 = h_conv4
   layer6 = tf.add(h_conv4, r5)
 
-  w4 = tf.Variable(tf.constant(1.,shape=[16,16,1,3,1216]))
+  w4 = tf.Variable(tf.constant(1.,shape=[32,32,1,3,1216]))
   DeConnv4 = tf.nn.conv3d_transpose(layer6, filter = w4, output_shape = tf.shape(x_image_2), strides = [1,16,16,1,1], padding = 'SAME')
 
   add1 = tf.add(DeConnv1,DeConnv2)
@@ -213,5 +213,4 @@ def model(x_image, x_image_2):
     #final_conv = conv3d_s1(final, WV)
   with tf.name_scope("AfterReshape"):
     final_conv = tf.reshape(final, [-1, 3])
-
   return final_conv
