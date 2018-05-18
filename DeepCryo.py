@@ -66,14 +66,14 @@ def runTrainingBatch(a, b, c):
   train_accuracy = accuracy.eval(feed_dict={x_image: a, y_: b, x_image_2: c, keep_prob: .5})
   train_step.run(feed_dict={x_image: a, y_: b, x_image_2: c, keep_prob: .5})
   temp = sess.run(modelResult, feed_dict={x_image: a, x_image_2: c, keep_prob: .5})
-  f5 = open("/home/dhaslam/New_test_samples2/RotatedSet/labels/results3.txt","w+")  
-  for i in range(0, 7167):
+  f5 = open("/home/dhaslam/New_test_samples2/RotatedSet/labels/results3.txt","w+")
+  for i in range(0, 1024):
     if(temp[i][0] > temp[i][1] and temp[i][0] > temp[i][2]):
-      f5.write(str(int(i/(32*7))) + " " + str(int(i/7)%32) + " " + str(int(i%7)) + " 0\r\n")
+      f5.write(str(int(i/(32))) + " " + str(int(i)%32) + " " + str(0) + " 0\r\n")
     if(temp[i][1] > temp[i][0] and temp[i][1] > temp[i][2]):
-      f5.write(str(int(i/(32*7))) + " " + str(int(i/7)%32) + " " + str(int(i%7)) + " 1\r\n")
+      f5.write(str(int(i/(32))) + " " + str(int(i)%32) + " " + str(0) + " 1\r\n")
     if(temp[i][2] > temp[i][0] and temp[i][2] > temp[i][1]):
-      f5.write(str(int(i/(32*7))) + " " + str(int(i/7)%32) + " " + str(int(i%7)) + " 2\r\n")
+      f5.write(str(int(i/(32))) + " " + str(int(i)%32) + " " + str(0) + " 2\r\n")
   f5.close()
   printBatchStats(train_accuracy, CurCross)
 
