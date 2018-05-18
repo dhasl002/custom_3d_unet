@@ -54,8 +54,7 @@ def model(x_image, x_image_2):
   h_conv6_B = conv3d_s1(h_conv5_B, W_conv6_B)
   #concatenation
   layer1 = tf.concat([h_conv4_A, h_conv6_B],4)
-
-  w = tf.Variable(tf.constant(1.,shape=[2,2,4,3,192]))
+  w = tf.Variable(tf.constant(1.,shape=[4,4,4,3,192]))
   DeConnv1 = tf.nn.conv3d_transpose(layer1, filter = w, output_shape = tf.shape(x_image_2), strides = [1,2,2,2,1], padding = 'SAME')
   r = tf.nn.relu(layer1)
 
@@ -88,15 +87,14 @@ def model(x_image, x_image_2):
   #concat
   concat2 = tf.concat([h_conv4_C_2, h_conv3_B_2, h_conv2_A_2],4)
   #convolution after paths merge
-  W_conv5 = weight_variable([3, 3, 1, 128, 384])
+  W_conv5 = weight_variable([1, 1, 1, 128, 384])
   h_conv5 = conv3d_s1(concat2, W_conv5)
   #last convolution in inceptionA, this is a dialated convolution
   h_conv6 = conv3d_dilation(h_conv5, 384)
   #residual learning added to last convolution
-  #layer2 = h_conv6
   layer2 = tf.add(h_conv6, concat1_1)
 
-  w2 = tf.Variable(tf.constant(1.,shape=[4,4,6,3,384]))
+  w2 = tf.Variable(tf.constant(1.,shape=[8,8,8,3,384]))
   DeConnv2 = tf.nn.conv3d_transpose(layer2, filter = w2, output_shape = tf.shape(x_image_2), strides = [1,4,4,4,1], padding = 'SAME')
 
   r2 = tf.nn.relu(layer2)
@@ -133,17 +131,17 @@ def model(x_image, x_image_2):
   #third convolution path 2
   W_conv3_B_4 = weight_variable([7, 1, 1, 128, 128])
   h_conv3_B_4 = conv3d_s1(h_conv2_B_4, W_conv3_B_4)
-  #second convolution path 1
-  W_conv2_A_4 = weight_variable([1, 1, 1, 128, 896])
-  h_conv2_A_4 = conv3d_s1(h_conv1_A_4, W_conv2_A_4)
   #concatenation
-  concat1 = tf.concat([h_conv3_B_4, h_conv2_A_4], 4)
+  concat1 = tf.concat([h_conv3_B_4, h_conv1_A_4], 4)
+  #second convolution path 1
+  W_conv2_A_4 = weight_variable([1, 1, 1, 256, 896])
+  h_conv2_A_4 = conv3d_s1(concat1, W_conv2_A_4)
   #dilation layer1
   h_conv4_4 = conv3d_dilation(concat1, 800)
   #residual addition
   layer4 = tf.add(h_conv4_4, r3)
 
-  w3 = tf.Variable(tf.constant(1.,shape=[8,8,7,3,800]))
+  w3 = tf.Variable(tf.constant(1.,shape=[16,16,16,3,800]))
   DeConnv3 = tf.nn.conv3d_transpose(layer4, filter = w3, output_shape = tf.shape(x_image_2), strides = [1,8,8,8,1], padding = 'SAME')
 
   r4 = tf.nn.relu(layer4)
@@ -151,25 +149,25 @@ def model(x_image, x_image_2):
 
   #Reduction B
   #first convolution path 1
-  #W_conv1_A = weight_variable([1, 1, 1, 800, 192])
-  #h_conv1_A = conv3d_s1(r4, W_conv1_A)
+  W_conv1_A_5 = weight_variable([1, 1, 1, 800, 192])
+  h_conv1_A_5 = conv3d_s1(r4, W_conv1_A_5)
   #first maxpool path 2
   h_conv1_B_5 = max_pool_3x3(r4)
   #first convolution path 3
   W_conv1_C = weight_variable([1, 1, 1, 800, 256])
   h_conv1_C = conv3d_s1(r4, W_conv1_C)
   #second convolution path 1
-  W_conv2_A_5 = weight_variable([3, 3, 1, 800, 32])
-  h_conv2_A_5 = conv3d(r4, W_conv2_A_5)
+  W_conv2_A_5 = weight_variable([3, 3, 1, 192, 192])
+  h_conv2_A_5 = conv3d(h_conv1_A_5, W_conv2_A_5)
   #second convolution path 3
-  W_conv2_C = weight_variable([3, 3, 1, 256, 256])
+  W_conv2_C = weight_variable([1, 7, 1, 256, 256])
   h_conv2_C = conv3d_s1(h_conv1_C, W_conv2_C)
   #third convolution path 3
-  #W_conv3_C = weight_variable([7, 1, 1, 256, 320])
-  #h_conv3_C = conv3d_s1(h_conv2_C, W_conv3_C)
+  W_conv3_C = weight_variable([7, 1, 1, 256, 320])
+  h_conv3_C = conv3d_s1(h_conv2_C, W_conv3_C)
   #fourth convolution path 3
-  W_conv4_C = weight_variable([3, 3, 1, 256, 384])
-  h_conv4_C = conv3d(h_conv2_C, W_conv4_C)
+  W_conv4_C = weight_variable([3, 3, 1, 320, 320])
+  h_conv4_C = conv3d(h_conv3_C, W_conv4_C)
   #concat
   layer5 = tf.concat([h_conv4_C, h_conv1_B_5, h_conv2_A_5], 4)
 
@@ -177,39 +175,37 @@ def model(x_image, x_image_2):
 
   #INCEPTION_C
   #first convolution path 1
-  W_conv1_A = weight_variable([1, 1, 1, 1216, 128])
+  W_conv1_A = weight_variable([1, 1, 1, 1312, 192])
   h_conv1_A = conv3d_s1(r5, W_conv1_A)
   #first convolution path 2
-  W_conv1_B = weight_variable([1, 1, 1, 1216, 128])
+  W_conv1_B = weight_variable([1, 1, 1, 1312, 192])
   h_conv1_B = conv3d_s1(r5, W_conv1_B)
   #second convolution path 1
-  W_conv2_A = weight_variable([1, 1, 1, 128, 896])
+  W_conv2_A = weight_variable([1, 1, 1, 192, 2048])
   h_conv2_A = conv3d_s1(h_conv1_A, W_conv2_A)
   #second convolution path 2
-  W_conv2_B = weight_variable([1, 7, 1, 128, 128])
+  W_conv2_B = weight_variable([1, 3, 1, 192, 224])
   h_conv2_B = conv3d_s1(h_conv1_B, W_conv2_B)
   #third convolution path 2
-  W_conv3_B = weight_variable([7, 1, 1, 128, 128])
+  W_conv3_B = weight_variable([3, 1, 1, 224, 256])
   h_conv3_B = conv3d_s1(h_conv2_B, W_conv3_B)
   #concat
   concat1 = tf.concat([h_conv3_B,h_conv2_A],4)
   #dilation
-  h_conv4 = conv3d_dilation(concat1, 1216)
-  #layer6 = h_conv4
+  h_conv4 = conv3d_dilation(concat1, 1312)
+  #residual
   layer6 = tf.add(h_conv4, r5)
 
-  w4 = tf.Variable(tf.constant(1.,shape=[16,16,7,3,1216]))
+  w4 = tf.Variable(tf.constant(1.,shape=[32,32,32,3,1312]))
   DeConnv4 = tf.nn.conv3d_transpose(layer6, filter = w4, output_shape = tf.shape(x_image_2), strides = [1,16,16,16,1], padding = 'SAME')
 
   add1 = tf.add(DeConnv1,DeConnv2)
   add2 = tf.add(DeConnv3,DeConnv4)
   with tf.name_scope("BeforeReshape"):
-	final = tf.add(add1, add2)
-  #with tf.name_scope("AfterMoreChannelsWV"):
-    #WV = weight_variable([1, 1, 1, 1, 3])
-  #with tf.name_scope("AfterMoreChannels"):
-    #final_conv = conv3d_s1(final, WV)
+	final = add1
   with tf.name_scope("AfterReshape"):
     final_conv = tf.reshape(final, [-1, 3])
 
-  return final_conv
+  regJust2 = tf.nn.l2_loss(W_conv1) + tf.nn.l2_loss(W_conv2) + tf.nn.l2_loss(W_conv3_A) + tf.nn.l2_loss(W_conv3_B_1) + tf.nn.l2_loss(W_conv4_A) + tf.nn.l2_loss(W_conv4_B) + tf.nn.l2_loss(W_conv5_B) + tf.nn.l2_loss(W_conv6_B) + tf.nn.l2_loss(W_conv1_A_2) + tf.nn.l2_loss(W_conv2_A_2) + tf.nn.l2_loss(W_conv2_B_2) + tf.nn.l2_loss(W_conv2_C_2) + tf.nn.l2_loss(W_conv3_B_2) + tf.nn.l2_loss(W_conv3_C_2) + tf.nn.l2_loss(W_conv4_C_2) + tf.nn.l2_loss(W_conv5) + tf.nn.l2_loss(w) + tf.nn.l2_loss(w2)	
+  reg = tf.nn.l2_loss(W_conv1) + tf.nn.l2_loss(W_conv2) + tf.nn.l2_loss(W_conv3_A) + tf.nn.l2_loss(W_conv3_B_1) + tf.nn.l2_loss(W_conv4_A) + tf.nn.l2_loss(W_conv4_B) + tf.nn.l2_loss(W_conv5_B) + tf.nn.l2_loss(W_conv6_B) + tf.nn.l2_loss(W_conv1_A_2) + tf.nn.l2_loss(W_conv2_A_2) + tf.nn.l2_loss(W_conv2_B_2) + tf.nn.l2_loss(W_conv2_C_2) + tf.nn.l2_loss(W_conv3_B_2) + tf.nn.l2_loss(W_conv3_C_2) + tf.nn.l2_loss(W_conv4_C_2) + tf.nn.l2_loss(W_conv5) + tf.nn.l2_loss(W_conv1_B_3) + tf.nn.l2_loss(W_conv1_C_3) + tf.nn.l2_loss(W_conv2_C_3) + tf.nn.l2_loss(W_conv3_C_3) + tf.nn.l2_loss(W_conv1_A_4) + tf.nn.l2_loss(W_conv1_B_4) + tf.nn.l2_loss(W_conv2_B_4) + tf.nn.l2_loss(W_conv3_B_4) + tf.nn.l2_loss(W_conv2_A_4) + tf.nn.l2_loss(W_conv1_C) + tf.nn.l2_loss(W_conv2_A_5) + tf.nn.l2_loss(W_conv2_C) + tf.nn.l2_loss(W_conv4_C) + tf.nn.l2_loss(W_conv1_A) + tf.nn.l2_loss(W_conv1_B) + tf.nn.l2_loss(W_conv2_A) + tf.nn.l2_loss(W_conv2_B) + tf.nn.l2_loss(W_conv3_B) + tf.nn.l2_loss(w) + tf.nn.l2_loss(w2) + tf.nn.l2_loss(w3) + tf.nn.l2_loss(w4) + tf.nn.l2_loss(W_conv1_A_5) + tf.nn.l2_loss(W_conv3_C)
+  return final_conv, regJust2
