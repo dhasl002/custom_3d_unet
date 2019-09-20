@@ -34,5 +34,5 @@
 
 ## Authors
 
-* **Devin Haslam** - All programing
+* **Devin Haslam** - All programing and research
 
