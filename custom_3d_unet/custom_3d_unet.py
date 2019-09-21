@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 def conv_3d(tempX, tempW):
-  return tf.nn.conv_3d(tempX, tempW, strides=[1, 1, 1, 1, 1], padding='SAME')
+  return tf.nn.conv3d(tempX, tempW, strides=[1, 1, 1, 1, 1], padding='SAME')
 
 def weight_variable(shape):
   initial = tf.truncated_normal(shape, stddev=0.1)
@@ -49,7 +49,7 @@ def model(x_image):
 
   pool3 = max_pool_2x2(relu_6)
 
-  with tf.name_scope("bottom layer"):
+  with tf.name_scope("Laywer4"):
     W_conv7 = weight_variable([3, 3, 3, 256, 256])
     h_conv7 = conv_3d(pool3, W_conv7)
     norm_7 = tf.contrib.layers.batch_norm(h_conv7)
@@ -60,7 +60,7 @@ def model(x_image):
     norm_8 = tf.contrib.layers.batch_norm(h_conv8)
     relu_8 = tf.nn.relu(norm_8)
 
-  up_sample1 = tf.layers.conv_3d_transpose(relu_8, filters = 512, kernel_size = (2,2,2), strides = (2,2,2))
+  up_sample1 = tf.layers.conv3d_transpose(relu_8, filters = 512, kernel_size = (2,2,2), strides = (2,2,2))
 
   concat1 = tf.concat([relu_6, up_sample1],4)
 
@@ -75,7 +75,7 @@ def model(x_image):
     norm_10 = tf.contrib.layers.batch_norm(h_conv10)
     relu_10 = tf.nn.relu(norm_10)
 
-  up_sample2 = tf.layers.conv_3d_transpose(relu_10, filters = 256, kernel_size = (2,2,2), strides = (2,2,2))
+  up_sample2 = tf.layers.conv3d_transpose(relu_10, filters = 256, kernel_size = (2,2,2), strides = (2,2,2))
 
   concat2 = tf.concat([relu_4, up_sample2],4)
 
@@ -90,7 +90,7 @@ def model(x_image):
     norm_12 = tf.contrib.layers.batch_norm(h_conv12)
     relu_12 = tf.nn.relu(norm_12)
 
-  up_sample3 = tf.layers.conv_3d_transpose(relu_12, filters = 128, kernel_size = (2,2,2), strides = (2,2,2))
+  up_sample3 = tf.layers.conv3d_transpose(relu_12, filters = 128, kernel_size = (2,2,2), strides = (2,2,2))
 
   concat3 = tf.concat([relu_2, up_sample3],4)
 
