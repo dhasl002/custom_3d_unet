@@ -9,10 +9,9 @@ from utils import *
 
 def train(batch_size, patch_width, patch_height, patch_depth):
   data_files = [join("../data/", f) for f in listdir("../data/") if isfile(join("../data/", f))]
-  print(data_files)
-  for mrc_image_path in data_files:
-    a, b = read_mrc_image_data(mrc_image_path, patch_width, patch_height, patch_depth, batch_size)
-    if(curr_file_num % batch_Size == batch_Size - 1):
+  for i in range(0, len(data_files)):
+    a, b = read_mrc_image_data(data_files[i], patch_width, patch_height, patch_depth, batch_size, i)
+    if(i % batch_Size == batch_Size - 1):
       train_batch(a, b)
 
 def train_batch(a, b):
@@ -23,12 +22,11 @@ def train_batch(a, b):
   print_batch_stats(train_accuracy, current_loss)
 
 if __name__ == "__main__":
-  print("hello world!")
   patch_width = 48
   patch_height = 48
   patch_depth = 48
   num_labels = 3
-  batch_Size = 1
+  batch_Size = 4
   epochs = 100000
 
   x_image = tf.placeholder(tf.float32, shape=[None, patch_width, patch_height, patch_depth, 1])

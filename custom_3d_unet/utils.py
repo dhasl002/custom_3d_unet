@@ -22,7 +22,6 @@ def get_mrc_dimensions(file_to_open):
         y_max = y_coord
       if z_coord > z_max:
         z_max = z_coord
-
   return x_max, x_min, y_max, y_min, z_max, z_min
 
 def writePredictionsToFile(predicted_labels, num_lines, index, axis_x, axis_y, axis_z):
@@ -54,7 +53,7 @@ def select_patch_random(a, b, x_length, y_length, z_length, patch_width, patch_h
   b = np.reshape(b, (-1, patch_width * patch_height * patch_depth, 3))
   return a, b
 
-def read_mrc_image_data(file_path, patch_width, patch_height, patch_depth, batch_size):
+def read_mrc_image_data(file_path, patch_width, patch_height, patch_depth, batch_size, file_num):
   x_max, x_min, y_max, y_min, z_max, z_min = get_mrc_dimensions(file_path)
   x_length = x_max - x_min + 1
   y_length = y_max - y_min + 1
@@ -70,9 +69,10 @@ def read_mrc_image_data(file_path, patch_width, patch_height, patch_depth, batch
       z_pos = int(z_coord) - z_min
       thresh = float(thresh)
       label = int(label)
-      a[0][x_pos][y_pos][z_pos][0] = thresh
-      b[0][x_pos][y_pos][z_pos][label] = 1
-      a, b = select_patch_random(a, b, x_length, y_length, z_length, patch_width, patch_height, patch_depth)
+      batch_it = file_num % batch_size
+      a[batch_it][x_pos][y_pos][z_pos][0] = thresh
+      b[batch_it][x_pos][y_pos][z_pos][label] = 1
+    a, b = select_patch_random(a, b, x_length, y_length, z_length, patch_width, patch_height, patch_depth)
   return a, b
 
 
